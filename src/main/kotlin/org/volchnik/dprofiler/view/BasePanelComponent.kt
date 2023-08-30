@@ -7,6 +7,7 @@ import java.awt.FlowLayout.LEFT
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.nio.file.Path
+import java.nio.file.Paths
 import javax.swing.JButton
 import javax.swing.JFileChooser
 import javax.swing.JLabel
@@ -15,11 +16,15 @@ import javax.swing.JPanel
 
 class BasePanelComponent: JPanel(BorderLayout()), ActionListener {
     private val changeDir = JButton("Select directory")
-    private val directoryLabel = JLabel()
+    private val directoryLabel: JLabel
     private var fileChooser = JFileChooser()
-    private var fileTree: FileTreeComponent = FileTreeComponent(Path.of("/Users/volchnik/projects/dprofiler/src"))
+    private var fileTree: FileTreeComponent
 
     init {
+        val defaultPath = Paths.get("").toAbsolutePath().toString()
+        fileTree = FileTreeComponent(Path.of(defaultPath))
+        directoryLabel = JLabel(defaultPath)
+
         val panel = JPanel(FlowLayout(LEFT))
         panel.add(changeDir)
         panel.add(directoryLabel)
@@ -55,6 +60,7 @@ class BasePanelComponent: JPanel(BorderLayout()), ActionListener {
                 val currentPath = selectedFile.toPath()
                 fileTree = FileTreeComponent(currentPath)
                 add(fileTree)
+                revalidate()
                 directoryLabel.text = currentPath.toString()
             }
         }

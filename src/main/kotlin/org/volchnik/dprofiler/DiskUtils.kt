@@ -6,7 +6,7 @@ import org.volchnik.dprofiler.model.DiskNode
 import org.volchnik.dprofiler.model.FileNode
 import org.volchnik.dprofiler.model.NodeEvent
 import java.nio.file.FileVisitResult.CONTINUE
-import java.nio.file.FileVisitResult.TERMINATE
+import java.nio.file.FileVisitResult.SKIP_SUBTREE
 import java.nio.file.Path
 import java.nio.file.StandardWatchEventKinds.*
 import java.nio.file.WatchKey
@@ -35,7 +35,7 @@ fun Path.scanDirectory(
                 pathStack.add(newDir)
                 CONTINUE
             } catch (e: Exception) {
-                TERMINATE
+                SKIP_SUBTREE
             }
         }
 
@@ -45,7 +45,7 @@ fun Path.scanDirectory(
                 pathStack.lastOrNull()?.addChild(path = path, child = lastDir, events = events, nodeMap = nodeMap)
                 CONTINUE
             } catch (e: Exception) {
-                TERMINATE
+                SKIP_SUBTREE
             }
         }
 
@@ -59,7 +59,7 @@ fun Path.scanDirectory(
                 }
                 CONTINUE
             } catch (e: Exception) {
-                TERMINATE
+                SKIP_SUBTREE
             }
         }
     }
