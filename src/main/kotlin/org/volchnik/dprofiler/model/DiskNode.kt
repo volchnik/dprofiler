@@ -11,14 +11,8 @@ sealed class DiskNode(val name: String, var parent: DirectoryNode? = null) {
 
     fun unsubscribe(subscriber: Any): Boolean = subscribers.remove(subscriber)
 
-    override fun toString() = "$name    ${size.formatToReadableSize()}"
-
-    private fun Long.formatToReadableSize(): String = when(this) {
-        in 1_000 .. 999_999 -> (this / 1_000.0).formatSize() + " KB"
-        in 1_000_000 .. 999_999_999 -> (this / 1_000_000.0).formatSize() + " MB"
-        in 1_000_000_000 .. Long.MAX_VALUE -> (this / 1_000_000_000.0).formatSize() + " GB"
-        else -> toString() + " B"
+    fun root(): DiskNode = when (val p = parent) {
+        null -> this
+        else -> p.root()
     }
-
-    private fun Double.formatSize() = "%.${2}f".format(this)
 }

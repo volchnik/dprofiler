@@ -12,7 +12,10 @@ import java.nio.file.StandardWatchEventKinds.*
 import java.nio.file.WatchKey
 import java.nio.file.WatchService
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.io.path.*
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.name
+import kotlin.io.path.visitFileTree
+
 
 @OptIn(ExperimentalPathApi::class)
 fun Path.scanDirectory(
@@ -27,10 +30,7 @@ fun Path.scanDirectory(
             try {
                 val newDir = when (pathStack.isEmpty()) {
                     true -> rootNode
-                    else -> {
-                        val watchKey = path.registerWatchKey(watchService)
-                        DirectoryNode(name = path.name, watchKey = watchKey)
-                    }
+                    else -> DirectoryNode(name = path.name)
                 }
                 pathStack.add(newDir)
                 CONTINUE
@@ -43,6 +43,8 @@ fun Path.scanDirectory(
             try {
                 val lastDir = pathStack.removeLast()
                 pathStack.lastOrNull()?.addChild(path = path, child = lastDir, events = events, nodeMap = nodeMap)
+                val watchKey = path.registerWatchKey(watchService)
+                lastDir.watchKey = watchKey
                 CONTINUE
             } catch (e: Exception) {
                 SKIP_SUBTREE
@@ -51,12 +53,10 @@ fun Path.scanDirectory(
 
         onVisitFileFailed { _, _ -> CONTINUE }
 
-        onVisitFile { file, _ ->
+        onVisitFile { file, attributes ->
             try {
-                if (file.exists()) {
-                    val newFile = FileNode(name = file.name, size = file.fileSize())
-                    pathStack.lastOrNull()?.addChild(path = file, child = newFile, events = events, nodeMap = nodeMap)
-                }
+                val newFile = FileNode(name = file.name, size = attributes.size())
+                pathStack.lastOrNull()?.addChild(path = file, child = newFile, events = events, nodeMap = nodeMap)
                 CONTINUE
             } catch (e: Exception) {
                 SKIP_SUBTREE
@@ -66,7 +66,8 @@ fun Path.scanDirectory(
 }
 
 fun Path.addRootNode(watchService: WatchService, nodeMap: ConcurrentHashMap<Path, DiskNode>): DirectoryNode {
-    val rootNode = DirectoryNode(name = name, watchKey = registerWatchKey(watchService))
+    val rootNode = DirectoryNode(name)
+    rootNode.watchKey = registerWatchKey(watchService)
     nodeMap[this] = rootNode
     return rootNode
 }

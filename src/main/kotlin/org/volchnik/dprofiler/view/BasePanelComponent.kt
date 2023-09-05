@@ -2,6 +2,7 @@ package org.volchnik.dprofiler.view
 
 import java.awt.BorderLayout
 import java.awt.BorderLayout.PAGE_START
+import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.FlowLayout.LEFT
 import java.awt.event.ActionEvent
@@ -15,18 +16,23 @@ import javax.swing.JPanel
 
 
 class BasePanelComponent: JPanel(BorderLayout()), ActionListener {
-    private val changeDir = JButton("Select directory")
+    private val changeDir = JButton("<html><b>Change directory</b></html>")
     private val directoryLabel: JLabel
     private var fileChooser = JFileChooser()
     private var fileTree: FileTreeComponent
+    private val panelStatus = JPanel(FlowLayout(LEFT))
 
     init {
         val defaultPath = Paths.get("").toAbsolutePath().toString()
-        fileTree = FileTreeComponent(Path.of(defaultPath))
+
+        fileTree = FileTreeComponent(basePath = Path.of(defaultPath), statusPanel = panelStatus)
         directoryLabel = JLabel(defaultPath)
+        directoryLabel.preferredSize = Dimension(450, 40)
 
         val panel = JPanel(FlowLayout(LEFT))
+
         panel.add(changeDir)
+        panel.add(panelStatus)
         panel.add(directoryLabel)
 
         add(panel, PAGE_START)
@@ -39,7 +45,7 @@ class BasePanelComponent: JPanel(BorderLayout()), ActionListener {
         fileChooser.setAcceptAllFileFilterUsed(false)
     }
 
-    fun shotdown() {
+    fun shutdown() {
         fileTree.shutdown()
     }
 
@@ -58,7 +64,7 @@ class BasePanelComponent: JPanel(BorderLayout()), ActionListener {
                 }
 
                 val currentPath = selectedFile.toPath()
-                fileTree = FileTreeComponent(currentPath)
+                fileTree = FileTreeComponent(basePath = currentPath, statusPanel = panelStatus)
                 add(fileTree)
                 revalidate()
                 directoryLabel.text = currentPath.toString()

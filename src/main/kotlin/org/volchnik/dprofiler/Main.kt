@@ -16,12 +16,12 @@ fun main() {
         val basePanel = BasePanelComponent()
         frame.add(basePanel)
         frame.pack()
-        frame.size = Dimension(600, 600)
+        frame.minimumSize = Dimension(700, 700)
         frame.isVisible = true
 
         frame.addWindowListener(object : WindowAdapter() {
             override fun windowClosing(windowEvent: WindowEvent) {
-                basePanel.shotdown()
+                basePanel.shutdown()
             }
         })
     }

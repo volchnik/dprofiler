@@ -11,18 +11,15 @@ import kotlinx.coroutines.swing.Swing
 import mu.KotlinLogging
 import org.volchnik.dprofiler.addRootNode
 import org.volchnik.dprofiler.calcInsertPosition
-import org.volchnik.dprofiler.model.DirectoryNode
-import org.volchnik.dprofiler.model.DiskNode
-import org.volchnik.dprofiler.model.EventType
-import org.volchnik.dprofiler.model.NodeEvent
+import org.volchnik.dprofiler.model.*
+import org.volchnik.dprofiler.model.ScanStatus.DONE
+import org.volchnik.dprofiler.model.ScanStatus.IN_PROGRESS
 import org.volchnik.dprofiler.scanDirectory
 import org.volchnik.dprofiler.service.FileWatcherService
 import java.awt.GridLayout
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
-import javax.swing.JPanel
-import javax.swing.JScrollPane
-import javax.swing.JTree
+import javax.swing.*
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeWillExpandListener
 import javax.swing.tree.DefaultMutableTreeNode
@@ -33,7 +30,7 @@ import javax.swing.tree.TreeSelectionModel
 const val EVENT_BUFFER_CAPACITY = 10_000
 const val REPLAY_BUFFER_CAPACITY = 1024
 
-class FileTreeComponent(basePath: Path) : JPanel(GridLayout(1, 0)),
+class FileTreeComponent(basePath: Path, val statusPanel: JPanel) : JPanel(GridLayout(1, 0)),
     TreeWillExpandListener {
 
     private val logger = KotlinLogging.logger {}
@@ -47,6 +44,7 @@ class FileTreeComponent(basePath: Path) : JPanel(GridLayout(1, 0)),
     private val rootNode = basePath.addRootNode(watchService = fileWatch.watchService, nodeMap = nodeMap)
     private val root = DefaultMutableTreeNode(rootNode)
     private val tree = JTree(root)
+    private val treeCellRenderer = FileTreeCellRenderer(tree)
 
     private val defaultScope = CoroutineScope(Dispatchers.Default)
     private val uiScope = CoroutineScope(Dispatchers.Swing)
@@ -56,6 +54,9 @@ class FileTreeComponent(basePath: Path) : JPanel(GridLayout(1, 0)),
         tree.addTreeWillExpandListener(this)
         (tree.model as DefaultTreeModel).setAsksAllowsChildren(true)
 
+        tree.rowHeight = 30
+        tree.setCellRenderer(treeCellRenderer)
+
         add(JScrollPane(tree))
 
         nodeTreeMap[rootNode] = root
@@ -63,12 +64,14 @@ class FileTreeComponent(basePath: Path) : JPanel(GridLayout(1, 0)),
         root.expand()
 
         defaultScope.launch {
+            setStatusPanel(IN_PROGRESS)
             basePath.scanDirectory(
                 rootNode = rootNode,
                 watchService = fileWatch.watchService,
                 events = events,
                 nodeMap = nodeMap
             )
+            setStatusPanel(DONE)
         }
 
         uiScope.launch {
@@ -89,6 +92,16 @@ class FileTreeComponent(basePath: Path) : JPanel(GridLayout(1, 0)),
         defaultScope.cancel()
         fileWatch.shutdown()
         uiScope.cancel()
+    }
+
+    private fun setStatusPanel(status: ScanStatus) {
+        statusPanel.removeAll()
+        val icon = when (status) {
+            IN_PROGRESS -> ImageIcon(javaClass.getResource("/animations/animation_loading_small.gif"))
+            DONE -> ImageIcon(javaClass.getResource("/animations/success.png"))
+        }
+        statusPanel.add(JLabel(icon))
+        statusPanel.updateUI()
     }
 
     private fun DefaultMutableTreeNode.addTreeNode(model: DefaultTreeModel, node: DiskNode) {

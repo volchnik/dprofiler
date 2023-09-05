@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.LongAdder
 import kotlin.io.path.fileSize
 
 
-class DirectoryNode(name: String, val watchKey: WatchKey) : DiskNode(name) {
+class DirectoryNode(name: String) : DiskNode(name) {
 
     private val logger = KotlinLogging.logger {}
 
@@ -19,8 +19,15 @@ class DirectoryNode(name: String, val watchKey: WatchKey) : DiskNode(name) {
 
     private val sizeAccumulator = LongAdder()
 
+    private val countAccumulator = LongAdder()
+
+    var watchKey: WatchKey? = null
+
     override val size: Long
         get() = sizeAccumulator.sum()
+
+    val count: Long
+        get() = countAccumulator.sum()
 
     val children: List<DiskNode>
         get() = childNodes.values.toList()
@@ -33,7 +40,12 @@ class DirectoryNode(name: String, val watchKey: WatchKey) : DiskNode(name) {
     private fun addChild(child: DiskNode, events: MutableSharedFlow<NodeEvent>) {
         child.parent = this
         childNodes[child.name] = child
-        updateSize(diff = child.size, events = events)
+
+        val diffCount = when (child) {
+            is FileNode -> 1L
+            is DirectoryNode -> child.count
+        }
+        update(diffSize = child.size, diffCount = diffCount, events = events)
 
         if (subscribers.isNotEmpty()) {
             val event = NodeEvent(node = this, child = child, type = ADD)
@@ -68,7 +80,7 @@ class DirectoryNode(name: String, val watchKey: WatchKey) : DiskNode(name) {
             }
         }
         nodeMap.remove(path)
-        child.watchKey.cancel()
+        child.watchKey?.cancel()
         childNodes.remove(child.name)
         if (!nested) {
             postDelete(child = child, events = events)
@@ -90,7 +102,11 @@ class DirectoryNode(name: String, val watchKey: WatchKey) : DiskNode(name) {
     }
 
     private fun postDelete(child: DiskNode, events: MutableSharedFlow<NodeEvent>) {
-        updateSize(diff = -child.size, events = events)
+        val diffCount = when (child) {
+            is FileNode -> 1L
+            is DirectoryNode -> child.count
+        }
+        update(diffSize = -child.size, diffCount = -diffCount, events = events)
 
         if (subscribers.isNotEmpty()) {
             val event = NodeEvent(node = this, child = child, type = REMOVE)
@@ -103,13 +119,14 @@ class DirectoryNode(name: String, val watchKey: WatchKey) : DiskNode(name) {
         val newSize = path.fileSize()
         val oldSize = child.size
         child.size = newSize
-        updateSize(diff = newSize - oldSize, events = events, child = child)
+        update(diffSize = newSize - oldSize, diffCount = 0L, events = events, child = child)
     }
 
-    private fun updateSize(diff: Long, events: MutableSharedFlow<NodeEvent>, child: DiskNode? = null) {
-        if (diff == 0L) return
+    private fun update(diffSize: Long, diffCount: Long, events: MutableSharedFlow<NodeEvent>, child: DiskNode? = null) {
+        if (diffSize == 0L && diffCount == 0L) return
 
-        sizeAccumulator.add(diff)
+        sizeAccumulator.add(diffSize)
+        countAccumulator.add(diffCount)
 
         if (subscribers.isNotEmpty()) {
             val event = NodeEvent(node = this, child = child ?: this, type = EventType.REFRESH)
@@ -117,6 +134,6 @@ class DirectoryNode(name: String, val watchKey: WatchKey) : DiskNode(name) {
             if (!result) logger.warn { "Dropped event: $event due to capacity limits" }
         }
 
-        parent?.updateSize(diff = diff, events = events)
+        parent?.update(diffSize = diffSize, diffCount = diffCount, events = events)
     }
 }

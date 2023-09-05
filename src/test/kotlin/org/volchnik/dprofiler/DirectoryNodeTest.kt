@@ -19,7 +19,8 @@ class DirectoryNodeTest {
         val watchKey = mockk<WatchKey>()
         val nodeMap: ConcurrentHashMap<Path, DiskNode> = ConcurrentHashMap()
         val events = mockk<MutableSharedFlow<NodeEvent>> { every { tryEmit(any()) } returns true }
-        val dir = DirectoryNode(name = "dir", watchKey = watchKey)
+        val dir = DirectoryNode(name = "dir")
+        dir.watchKey = watchKey
         val child = FileNode(name = "file", size = 10L)
 
         // without subscribers
@@ -50,8 +51,10 @@ class DirectoryNodeTest {
         val watchKey = mockk<WatchKey> { every { cancel() } returns Unit }
         val nodeMap: ConcurrentHashMap<Path, DiskNode> = ConcurrentHashMap()
         val events = mockk<MutableSharedFlow<NodeEvent>> { every { tryEmit(any()) } returns true }
-        val dir = DirectoryNode(name = "dir", watchKey = watchKey)
-        val dir2 = DirectoryNode(name = "dir2", watchKey = watchKey)
+        val dir = DirectoryNode(name = "dir")
+        dir.watchKey = watchKey
+        val dir2 = DirectoryNode(name = "dir2")
+        dir2.watchKey = watchKey
         val child = FileNode(name = "file", size = 10L)
 
         // without subscribers
@@ -62,7 +65,7 @@ class DirectoryNodeTest {
         assertEquals(expected = 0, actual = dir.children.size)
         assertEquals(expected = 0L, actual = dir.size)
         assertEquals(expected = 1, actual = nodeMap.size)
-        verify(exactly = 1) { dir2.watchKey.cancel() }
+        verify(exactly = 1) { dir2.watchKey?.cancel() }
         verify(exactly = 0) { events.tryEmit(any()) }
 
         // with subscribers
@@ -80,7 +83,8 @@ class DirectoryNodeTest {
         val watchKey = mockk<WatchKey> { every { cancel() } returns Unit }
         val nodeMap: ConcurrentHashMap<Path, DiskNode> = ConcurrentHashMap()
         val events = mockk<MutableSharedFlow<NodeEvent>> { every { tryEmit(any()) } returns true }
-        val dir = DirectoryNode(name = "dir", watchKey = watchKey)
+        val dir = DirectoryNode(name = "dir")
+        dir.watchKey = watchKey
         val child = FileNode(name = "file", size = 10L)
 
         // without subscribers
@@ -107,7 +111,8 @@ class DirectoryNodeTest {
         val nodeMap: ConcurrentHashMap<Path, DiskNode> = ConcurrentHashMap()
         val events = mockk<MutableSharedFlow<NodeEvent>> { every { tryEmit(any()) } returns true }
         val path = mockk<Path> { every { fileSize() } returns 100L }
-        val dir = DirectoryNode(name = "dir", watchKey = watchKey)
+        val dir = DirectoryNode(name = "dir")
+        dir.watchKey = watchKey
         val child = FileNode(name = "file", size = 10L)
 
         // without subscribers
