@@ -62,21 +62,26 @@ class DirectoryNode(name: String) : DiskNode(name) {
         nested: Boolean = false
     ) {
         child.childNodes.values.forEach {
-            when (it) {
-                is DirectoryNode -> removeChildDirectory(
-                    path = path.resolve(it.name),
-                    child = it,
-                    nodeMap = nodeMap,
-                    events = events,
-                    nested = true
-                )
-                is FileNode -> removeChildFile(
-                    path = path,
-                    child = it,
-                    nodeMap = nodeMap,
-                    events = events,
-                    nested = true
-                )
+            try {
+                when (it) {
+                    is DirectoryNode -> removeChildDirectory(
+                        path = path.resolve(it.name),
+                        child = it,
+                        nodeMap = nodeMap,
+                        events = events,
+                        nested = true
+                    )
+
+                    is FileNode -> removeChildFile(
+                        path = path,
+                        child = it,
+                        nodeMap = nodeMap,
+                        events = events,
+                        nested = true
+                    )
+                }
+            } catch (e: Exception) {
+                logger.warn { "Remove child failed: $e" }
             }
         }
         nodeMap.remove(path)
@@ -116,10 +121,14 @@ class DirectoryNode(name: String) : DiskNode(name) {
     }
 
     fun modifyChild(path: Path, child: FileNode, events: MutableSharedFlow<NodeEvent>) {
-        val newSize = path.fileSize()
-        val oldSize = child.size
-        child.size = newSize
-        update(diffSize = newSize - oldSize, diffCount = 0L, events = events, child = child)
+        try {
+            val newSize = path.fileSize()
+            val oldSize = child.size
+            child.size = newSize
+            update(diffSize = newSize - oldSize, diffCount = 0L, events = events, child = child)
+        } catch (e: Exception) {
+            logger.warn { "Modify child failed: $e" }
+        }
     }
 
     private fun update(diffSize: Long, diffCount: Long, events: MutableSharedFlow<NodeEvent>, child: DiskNode? = null) {
